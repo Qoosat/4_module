@@ -5,6 +5,9 @@ from clients.api_manager import ApiManager
 from custom_requester.custom_requester import CustomRequester
 from config.base_urls import AUTH_BASE_URL
 
+ADMIN_EMAIL = "api1@gmail.com"
+ADMIN_PASSWORD = "asdqwe123Q"
+
 
 @pytest.fixture(scope="session")
 def session():
@@ -40,3 +43,25 @@ def registered_user(api_manager, test_user):
     response = api_manager.auth_api.register_user(test_user).json()
     test_user['id'] = response['id']
     return test_user
+
+
+@pytest.fixture(scope="session")
+def admin_api_manager():
+    admin_session = requests.Session()
+    manager = ApiManager(admin_session)
+    manager.auth_api.authenticate((ADMIN_EMAIL, ADMIN_PASSWORD))
+    admin_session.cookies.clear()
+    yield manager
+    admin_session.close()
+
+
+@pytest.fixture(scope="function")
+def created_movie(admin_api_manager):
+    movie_data = DataGenerator.generate_movie_data()
+    response = admin_api_manager.movies_api.create_movie(movie_data)
+    movie = response.json()
+    yield movie
+    try:
+        admin_api_manager.movies_api.delete_movie(movie["id"])
+    except ValueError:
+        pass
